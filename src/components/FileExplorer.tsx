@@ -91,6 +91,51 @@ export default function FileExplorer({ onOpenFile, root = "" }: Props) {
     }
   }
 
+  async function createFolder() {
+    const input = window.prompt(
+      "New folder path (relative to project root):",
+      root ? `${root}/new-folder` : "new-folder"
+    );
+    if (!input) return;
+    const rel = input.replace(/\\+/g, "/");
+    const res = await fetch("/api/fs/mkdir", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path: rel }),
+    });
+    if (res.ok) {
+      const parent = rel.split("/").slice(0, -1).join("/");
+      await Promise.all([loadDir(parent), loadDir(parent || "")]);
+      setExpanded((prev) => ({ ...prev, [parent]: true, [rel]: true }));
+    } else {
+      const data = await res.json().catch(() => ({}));
+      alert("Failed to create folder: " + (data?.error || res.statusText));
+    }
+  }
+
+  async function createFile() {
+    const input = window.prompt(
+      "New file path (relative to project root):",
+      root ? `${root}/new-file.txt` : "new-file.txt"
+    );
+    if (!input) return;
+    const rel = input.replace(/\\+/g, "/");
+    const res = await fetch("/api/fs/write", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path: rel, content: "" }),
+    });
+    if (res.ok) {
+      const parent = rel.split("/").slice(0, -1).join("/");
+      await Promise.all([loadDir(parent), loadDir(parent || "")]);
+      setExpanded((prev) => ({ ...prev, [parent]: true }));
+      onOpenFile({ path: rel, content: "", language: extToLanguage(rel) });
+    } else {
+      const data = await res.json().catch(() => ({}));
+      alert("Failed to create file: " + (data?.error || res.statusText));
+    }
+  }
+
   function toggle(dir: string) {
     const willExpand = !expanded[dir];
     setExpanded((prev) => ({ ...prev, [dir]: willExpand }));
@@ -158,12 +203,30 @@ export default function FileExplorer({ onOpenFile, root = "" }: Props) {
 
   return (
     <div className="h-full overflow-auto text-sm">
-      <div
-        className="flex items-center cursor-pointer select-none py-1 font-medium"
-        onClick={() => toggle(root)}
-      >
-        <span className="mr-1 text-xs">{expanded[root] ? "▼" : "▶"}</span>
-        <span>{root || "/"}</span>
+      <div className="flex items-center justify-between py-1">
+        <div
+          className="flex items-center cursor-pointer select-none font-medium"
+          onClick={() => toggle(root)}
+        >
+          <span className="mr-1 text-xs">{expanded[root] ? "▼" : "▶"}</span>
+          <span>{root || "/"}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            className="px-2 py-1 text-xs bg-gray-200 rounded hover:bg-gray-300"
+            onClick={createFolder}
+            title="New folder"
+          >
+            New Folder
+          </button>
+          <button
+            className="px-2 py-1 text-xs bg-gray-200 rounded hover:bg-gray-300"
+            onClick={createFile}
+            title="New file"
+          >
+            New File
+          </button>
+        </div>
       </div>
       {renderDir(root, 0)}
     </div>

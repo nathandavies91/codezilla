@@ -11,12 +11,21 @@ function joinPath(a: string, b: string) {
   return a + "/" + b;
 }
 
+function toRel(fromBase: string, abs: string) {
+  const base = fromBase.replace(/\\+/g, "/");
+  const p = abs.replace(/\\+/g, "/");
+  if (p === base) return "";
+  if (p.startsWith(base + "/")) return p.slice(base.length + 1);
+  return p; // fallback
+}
+
 async function dockerList(
   container: string,
-  dirPath: string
+  dirPathAbs: string,
+  projectPath: string
 ): Promise<{ name: string; path: string; type: "file" | "directory" }[]> {
   const code = `const fs=require('fs');const p=process.argv[1];const list=fs.readdirSync(p,{withFileTypes:true}).filter(d=>!d.name.startsWith('.') ).map(d=>({name:d.name,type:d.isDirectory()?'directory':'file'}));process.stdout.write(JSON.stringify(list));`;
-  const args = ["exec", "-i", container, "node", "-e", code, dirPath];
+  const args = ["exec", "-i", container, "node", "-e", code, dirPathAbs];
   const child = spawn("docker", args, { stdio: ["ignore", "pipe", "pipe"] });
   const stdout: Buffer[] = [];
   const stderr: Buffer[] = [];
@@ -39,10 +48,11 @@ async function dockerList(
     name: string;
     type: "file" | "directory";
   }[];
+  const relDir = toRel(projectPath, dirPathAbs);
   return entries.map((e) => ({
     name: e.name,
     type: e.type,
-    path: joinPath(dirPath, e.name),
+    path: joinPath(relDir, e.name), // return path relative to project root
   }));
 }
 
@@ -56,19 +66,20 @@ export async function GET(req: Request) {
     // Start container on first import/request and reuse it
     const ctx = await ensureDockerContainer();
 
-    console.log("ctx", ctx);
-
     if (ctx?.containerName) {
       const container = ctx.containerName;
       const projectPath = ctx.projectPath;
 
-      const dirPath = raw
+      const dirPathAbs = raw
         ? raw.startsWith("/")
           ? raw
           : joinPath(projectPath, raw)
         : projectPath;
-      const entries = await dockerList(container, dirPath);
-      return NextResponse.json({ entries });
+      const entries = await dockerList(container, dirPathAbs, projectPath);
+      return NextResponse.json(
+        { entries },
+        { headers: { "Cache-Control": "no-store" } }
+      );
     }
 
     // Local filesystem fallback
@@ -84,11 +95,14 @@ export async function GET(req: Request) {
         type: d.isDirectory() ? "directory" : "file",
       }));
 
-    return NextResponse.json({ entries });
+    return NextResponse.json(
+      { entries },
+      { headers: { "Cache-Control": "no-store" } }
+    );
   } catch (e: any) {
     return NextResponse.json(
       { error: e?.message || "Failed to read dir" },
-      { status: 400 }
+      { status: 400, headers: { "Cache-Control": "no-store" } }
     );
   }
 }
