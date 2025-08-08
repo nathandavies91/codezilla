@@ -68,7 +68,7 @@ export default function FileExplorer({ onOpenFile, root = "" }: Props) {
         const list: FileNode[] = data.entries || [];
         setEntriesCache((prev) => ({ ...prev, [dir]: list }));
       } else {
-        console.error(data.error || "Failed to list directory");
+        console.error(data?.error || "Failed to list directory");
       }
     } finally {
       setLoadingDir(null);

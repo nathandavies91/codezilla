@@ -1,0 +1,28 @@
+# dependencies
+node_modules
+pnpm-lock.yaml
+npm-debug.log
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+.npmrc
+# next.js
+.next
+out
+
+# logs
+logs
+*.log
+
+# git
+.git
+.gitignore
+
+# editor
+.vscode
+.idea
+
+# docker
+Dockerfile*
+docker-compose*.yml
