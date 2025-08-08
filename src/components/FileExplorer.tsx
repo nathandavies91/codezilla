@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export type FileNode = {
   name: string;
@@ -52,42 +52,107 @@ function extToLanguage(path: string): string {
   }
 }
 
+// Helpers
+const INDENT = 12;
+const normalizeRelPath = (p: string) =>
+  p
+    .replace(/\\+/g, "/") // backslashes -> slashes
+    .replace(/^\/+/, "") // no leading slash
+    .replace(/\/+$/, ""); // no trailing slash
+
+const sortEntries = (list: FileNode[]): FileNode[] => {
+  const dirs = list
+    .filter((e) => e.type === "directory")
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const files = list
+    .filter((e) => e.type === "file")
+    .sort((a, b) => a.name.localeCompare(b.name));
+  return [...dirs, ...files];
+};
+
 export default function FileExplorer({ onOpenFile, root = "" }: Props) {
   const [entriesCache, setEntriesCache] = useState<DirEntries>({});
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [loadingDir, setLoadingDir] = useState<string | null>(null);
 
+  // Abort controllers to prevent race conditions
+  const listControllers = useRef<Map<string, AbortController>>(new Map());
+  const readController = useRef<AbortController | null>(null);
+
   async function loadDir(dir: string) {
     setLoadingDir(dir);
+
+    // Abort any in-flight request for this dir
+    const prev = listControllers.current.get(dir);
+    prev?.abort();
+    const ac = new AbortController();
+    listControllers.current.set(dir, ac);
+
     try {
       const url = new URL("/api/fs/list", window.location.origin);
       if (dir) url.searchParams.set("dir", dir);
-      const res = await fetch(url.toString());
-      const data = await res.json();
+      const res = await fetch(url.toString(), {
+        signal: ac.signal,
+        cache: "no-store",
+        headers: { "Cache-Control": "no-store" },
+      });
+
+      // If a newer request started, ignore this response
+      if (listControllers.current.get(dir) !== ac) return;
+
+      const data = await res.json().catch(() => ({}));
       if (res.ok) {
-        const list: FileNode[] = data.entries || [];
-        setEntriesCache((prev) => ({ ...prev, [dir]: list }));
+        const list: FileNode[] = Array.isArray(data.entries)
+          ? data.entries
+          : [];
+        setEntriesCache((prev) => ({ ...prev, [dir]: sortEntries(list) }));
       } else {
         console.error(data?.error || "Failed to list directory");
       }
+    } catch (err: any) {
+      if (err?.name !== "AbortError") {
+        console.error("List dir failed:", err);
+      }
     } finally {
-      setLoadingDir(null);
+      if (listControllers.current.get(dir) === ac) {
+        setLoadingDir(null);
+        listControllers.current.delete(dir);
+      }
     }
   }
 
   async function openFile(path: string) {
-    const url = new URL("/api/fs/read", window.location.origin);
-    url.searchParams.set("path", path);
-    const res = await fetch(url.toString());
-    const data = await res.json();
-    if (res.ok) {
-      onOpenFile({
-        path,
-        content: data.content || "",
-        language: extToLanguage(path),
+    // Abort previous read
+    readController.current?.abort();
+    const ac = new AbortController();
+    readController.current = ac;
+
+    try {
+      const url = new URL("/api/fs/read", window.location.origin);
+      url.searchParams.set("path", path);
+      const res = await fetch(url.toString(), {
+        signal: ac.signal,
+        cache: "no-store",
+        headers: { "Cache-Control": "no-store" },
       });
-    } else {
-      console.error(data.error || "Failed to read file");
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        onOpenFile({
+          path,
+          content: data.content || "",
+          language: extToLanguage(path),
+        });
+      } else {
+        console.error(data?.error || "Failed to read file");
+      }
+    } catch (err: any) {
+      if (err?.name !== "AbortError") {
+        console.error("Read file failed:", err);
+      }
+    } finally {
+      if (readController.current === ac) {
+        readController.current = null;
+      }
     }
   }
 
@@ -97,19 +162,33 @@ export default function FileExplorer({ onOpenFile, root = "" }: Props) {
       root ? `${root}/new-folder` : "new-folder"
     );
     if (!input) return;
-    const rel = input.replace(/\\+/g, "/");
-    const res = await fetch("/api/fs/mkdir", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ path: rel }),
-    });
-    if (res.ok) {
-      const parent = rel.split("/").slice(0, -1).join("/");
-      await Promise.all([loadDir(parent), loadDir(parent || "")]);
-      setExpanded((prev) => ({ ...prev, [parent]: true, [rel]: true }));
-    } else {
-      const data = await res.json().catch(() => ({}));
-      alert("Failed to create folder: " + (data?.error || res.statusText));
+    const rel = normalizeRelPath(input);
+
+    try {
+      const res = await fetch("/api/fs/mkdir", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Cache-Control": "no-store",
+        },
+        cache: "no-store",
+        body: JSON.stringify({ path: rel }),
+      });
+      if (res.ok) {
+        const parent = rel.split("/").slice(0, -1).join("/");
+        // Refresh parent and root if needed
+        await Promise.all([
+          loadDir(parent),
+          parent !== root ? loadDir(root) : Promise.resolve(),
+        ]);
+        setExpanded((prev) => ({ ...prev, [parent]: true, [rel]: true }));
+      } else {
+        const data = await res.json().catch(() => ({}));
+        alert("Failed to create folder: " + (data?.error || res.statusText));
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Failed to create folder.");
     }
   }
 
@@ -119,20 +198,33 @@ export default function FileExplorer({ onOpenFile, root = "" }: Props) {
       root ? `${root}/new-file.txt` : "new-file.txt"
     );
     if (!input) return;
-    const rel = input.replace(/\\+/g, "/");
-    const res = await fetch("/api/fs/write", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ path: rel, content: "" }),
-    });
-    if (res.ok) {
-      const parent = rel.split("/").slice(0, -1).join("/");
-      await Promise.all([loadDir(parent), loadDir(parent || "")]);
-      setExpanded((prev) => ({ ...prev, [parent]: true }));
-      onOpenFile({ path: rel, content: "", language: extToLanguage(rel) });
-    } else {
-      const data = await res.json().catch(() => ({}));
-      alert("Failed to create file: " + (data?.error || res.statusText));
+    const rel = normalizeRelPath(input);
+
+    try {
+      const res = await fetch("/api/fs/write", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Cache-Control": "no-store",
+        },
+        cache: "no-store",
+        body: JSON.stringify({ path: rel, content: "" }),
+      });
+      if (res.ok) {
+        const parent = rel.split("/").slice(0, -1).join("/");
+        await Promise.all([
+          loadDir(parent),
+          parent !== root ? loadDir(root) : Promise.resolve(),
+        ]);
+        setExpanded((prev) => ({ ...prev, [parent]: true }));
+        onOpenFile({ path: rel, content: "", language: extToLanguage(rel) });
+      } else {
+        const data = await res.json().catch(() => ({}));
+        alert("Failed to create file: " + (data?.error || res.statusText));
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Failed to create file.");
     }
   }
 
@@ -159,7 +251,7 @@ export default function FileExplorer({ onOpenFile, root = "" }: Props) {
         {dir !== root && (
           <div
             className="flex items-center cursor-pointer select-none py-1"
-            style={{ paddingLeft: depth * 12 }}
+            style={{ paddingLeft: depth * INDENT }}
             onClick={() => toggle(dir)}
           >
             <span className="mr-1 text-xs">{isOpen ? "▼" : "▶"}</span>
@@ -173,7 +265,7 @@ export default function FileExplorer({ onOpenFile, root = "" }: Props) {
             {loadingDir === dir && !entries && (
               <div
                 className="text-xs text-gray-500 py-1"
-                style={{ paddingLeft: (depth + 1) * 12 }}
+                style={{ paddingLeft: (depth + 1) * INDENT }}
               >
                 Loading...
               </div>
@@ -186,7 +278,7 @@ export default function FileExplorer({ onOpenFile, root = "" }: Props) {
                 <div
                   key={node.path}
                   className="flex items-center cursor-pointer text-sm hover:bg-gray-100 rounded px-1 py-0.5"
-                  style={{ paddingLeft: (depth + 1) * 12 }}
+                  style={{ paddingLeft: (depth + 1) * INDENT }}
                   onClick={() => openFile(node.path)}
                   title={node.path}
                 >
