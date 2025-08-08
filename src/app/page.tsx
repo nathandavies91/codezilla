@@ -10,6 +10,7 @@ export default function Home() {
   const [prompt, setPrompt] = useState("");
   const [currentFile, setCurrentFile] = useState<string | null>(null);
   const [editorLanguage, setEditorLanguage] = useState<string>("html");
+  const [saving, setSaving] = useState(false);
 
   async function generateCode() {
     setLoading(true);
@@ -31,6 +32,37 @@ export default function Home() {
       console.error(e);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function saveCode() {
+    try {
+      let path = currentFile || "";
+      if (!path) {
+        const suggested = "src/app/page.tsx";
+        const input = window.prompt(
+          "Save as (relative to project root):",
+          suggested
+        );
+        if (!input) return;
+        path = input.replace(/\\+/g, "/");
+        setCurrentFile(path);
+      }
+      setSaving(true);
+      const res = await fetch("/api/fs/write", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path, content: code }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert("Save failed: " + (data?.error || res.statusText));
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Save failed");
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -62,20 +94,30 @@ export default function Home() {
 
         <div className="flex-1 flex min-h-0">
           <div className="w-1/2 p-4 flex flex-col">
-            <div className="mb-3 flex items-center gap-3">
+            <div className="mb-3 flex items-center gap-3 flex-wrap">
               <input
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
                 placeholder="Describe what to build (e.g., 'A todo app with Tailwind and vanilla JS')"
                 className="flex-1 min-w-0 rounded px-3 py-2 border border-gray-300 text-black placeholder:text-gray-500"
               />
-              <button
-                onClick={generateCode}
-                disabled={loading || !prompt.trim()}
-                className="bg-indigo-600 text-white px-4 py-2 rounded disabled:opacity-60 disabled:cursor-not-allowed"
-              >
-                {loading ? "Generating..." : "Generate"}
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={generateCode}
+                  disabled={loading || !prompt.trim()}
+                  className="bg-indigo-600 text-white px-4 py-2 rounded disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {loading ? "Generating..." : "Generate"}
+                </button>
+                <button
+                  onClick={saveCode}
+                  disabled={saving || !code}
+                  className="bg-emerald-600 text-white px-4 py-2 rounded disabled:opacity-60 disabled:cursor-not-allowed"
+                  title={currentFile ? `Save ${currentFile}` : "Save As"}
+                >
+                  {saving ? "Saving..." : currentFile ? "Save" : "Save As"}
+                </button>
+              </div>
             </div>
             <div className="flex items-center justify-between text-xs text-gray-600 mb-1">
               <div className="truncate">

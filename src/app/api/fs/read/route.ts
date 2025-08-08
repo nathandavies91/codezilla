@@ -2,11 +2,24 @@ import { NextResponse } from "next/server";
 import { readFile, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { spawn } from "node:child_process";
+import { ensureDockerContainer } from "../../../../server/dockerContainerManager";
 
-async function dockerCat(container: string, filePath: string): Promise<string> {
+function joinPath(a: string, b: string) {
+  if (!a) return b;
+  if (!b) return a;
+  if (a.endsWith("/")) return a + (b.startsWith("/") ? b.slice(1) : b);
+  return a + "/" + b;
+}
+
+async function dockerRead(
+  container: string,
+  filePath: string
+): Promise<string> {
+  const code =
+    "const fs=require('fs');const p=process.argv[1];process.stdout.write(fs.readFileSync(p,'utf8'));";
   const child = spawn(
     "docker",
-    ["exec", "-i", container, "bash", "-lc", `cat "$1"`, "_", filePath],
+    ["exec", "-i", container, "node", "-e", code, filePath],
     {
       stdio: ["ignore", "pipe", "pipe"],
     }
@@ -30,13 +43,6 @@ async function dockerCat(container: string, filePath: string): Promise<string> {
   return Buffer.concat(stdout).toString("utf8");
 }
 
-function joinPath(a: string, b: string) {
-  if (!a) return b;
-  if (!b) return a;
-  if (a.endsWith("/")) return a + (b.startsWith("/") ? b.slice(1) : b);
-  return a + "/" + b;
-}
-
 // Read a file relative to project root or inside a container
 // GET /api/fs/read?path=src/app/page.tsx
 export async function GET(req: Request) {
@@ -46,15 +52,13 @@ export async function GET(req: Request) {
     if (!rel)
       return NextResponse.json({ error: "Missing path" }, { status: 400 });
 
-    const container = process.env.CONTAINER_NAME;
-    const projectPath = (process.env.CONTAINER_PROJECT_PATH || "/app").replace(
-      /\\+/g,
-      "/"
-    );
+    const ctx = await ensureDockerContainer();
 
-    if (container) {
-      const filePath = rel.startsWith("/") ? rel : joinPath(projectPath, rel);
-      const content = await dockerCat(container, filePath);
+    if (ctx?.containerName) {
+      const filePath = rel.startsWith("/")
+        ? rel
+        : joinPath(ctx.projectPath, rel);
+      const content = await dockerRead(ctx.containerName, filePath);
       return NextResponse.json({ content });
     }
 

@@ -16,6 +16,7 @@ declare global {
         starting?: Promise<ContainerCtx | null>;
         cleanupInstalled?: boolean;
         cleaned?: boolean;
+        owned?: boolean; // whether this process created the container
       }
     | undefined;
 }
@@ -26,6 +27,7 @@ const g = globalThis as any as typeof globalThis & {
     starting?: Promise<ContainerCtx | null>;
     cleanupInstalled?: boolean;
     cleaned?: boolean;
+    owned?: boolean;
   };
 };
 
@@ -63,7 +65,10 @@ function installCleanupOnce(name: string) {
       return;
     g.__CODEZILLA_FS_CONTAINER__!.cleaned = true;
     try {
-      await removeContainer(name);
+      // Only remove if we own it (i.e., we created it)
+      if (g.__CODEZILLA_FS_CONTAINER__!.owned) {
+        await removeContainer(name);
+      }
     } catch {
       // ignore
     }
@@ -80,10 +85,23 @@ function installCleanupOnce(name: string) {
   });
 }
 
-async function startContainer(): Promise<ContainerCtx | null> {
-  // Allow opt-out via env
-  if (process.env.DISABLE_AUTO_DOCKER === "1") return null;
+async function resolveExistingTarget(): Promise<ContainerCtx | null> {
+  const targetName = process.env.TARGET_CONTAINER_NAME || "my-next-app";
+  const projectPath = (
+    process.env.TARGET_CONTAINER_PROJECT_PATH || "/app"
+  ).replace(/\\+/g, "/");
+  const ping = await runDocker(["ps", "--format", "{{.Names}}"]);
+  if (ping.code !== 0) return null;
+  const names = ping.stdout.split(/\r?\n/).filter(Boolean);
+  if (!names.includes(targetName)) return null;
 
+  // Found running target container
+  process.env.CONTAINER_NAME = targetName;
+  process.env.CONTAINER_PROJECT_PATH = projectPath;
+  return { containerName: targetName, projectPath };
+}
+
+async function startManagedContainer(): Promise<ContainerCtx | null> {
   // Check docker availability quickly
   const ping = await runDocker(["version", "--format", "{{.Server.Version}}"]);
   if (ping.code !== 0) return null;
@@ -129,6 +147,8 @@ async function startContainer(): Promise<ContainerCtx | null> {
     return null;
   }
 
+  // Mark as owned so we clean it up on exit
+  g.__CODEZILLA_FS_CONTAINER__!.owned = true;
   installCleanupOnce(containerName);
 
   // Expose for convenience
@@ -145,10 +165,22 @@ export async function ensureDockerContainer(): Promise<ContainerCtx | null> {
   if (state.starting) return state.starting;
 
   state.starting = (async () => {
-    const ctx = await startContainer();
-    state.ctx = ctx ?? undefined;
-    state.starting = undefined;
-    return ctx;
+    // Prefer attaching to an existing target container (e.g., docker-compose app)
+    const target = await resolveExistingTarget();
+    if (target) {
+      state.owned = false;
+      state.ctx = target;
+      return target;
+    }
+
+    // Optionally start a managed helper container if allowed
+    if (process.env.DISABLE_AUTO_DOCKER !== "1") {
+      const managed = await startManagedContainer();
+      state.ctx = managed ?? undefined;
+      return managed;
+    }
+
+    return null;
   })();
 
   return state.starting;

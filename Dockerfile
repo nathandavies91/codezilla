@@ -1,55 +1,36 @@
-# ---------- Base deps layer ----------
-FROM node:20-alpine AS base
+# Build a brand-new Next.js app inside Docker (no host files used)
 
-# Ensure openssl for Prisma or other native deps if needed
-RUN apk add --no-cache libc6-compat
-
+# ---------- Scaffold stage: creates a new Next.js app ----------
+FROM node:20-alpine AS scaffold
 WORKDIR /app
 
-# ---------- Dependencies ----------
-FROM base AS deps
-# Install OS deps used by builds (git optional)
-RUN apk add --no-cache python3 make g++
+# Configure app name and flags for create-next-app
+ARG APP_NAME=my-next-app
+ARG NEXT_FLAGS="--ts --eslint --tailwind --app --src-dir --import-alias @/* --use-npm"
+ENV NEXT_TELEMETRY_DISABLED=1
 
-# Install dependencies with npm ci (lockfile recommended)
-COPY package.json package-lock.json* pnpm-lock.yaml* yarn.lock* ./
-RUN \
-    if [ -f package-lock.json ]; then npm ci; \
-    elif [ -f pnpm-lock.yaml ]; then npm -g i pnpm && pnpm i --frozen-lockfile; \
-    elif [ -f yarn.lock ]; then npm -g i yarn && yarn --frozen-lockfile; \
-    else npm i; fi
+# Create a new Next.js project non-interactively
+RUN npm config set fund false && npm config set update-notifier false \
+    && npx --yes create-next-app@latest ${APP_NAME} ${NEXT_FLAGS}
 
-# ---------- Builder ----------
-FROM base AS builder
+# ---------- Dev stage: runs the app with next dev ----------
+FROM node:20-alpine AS dev
 WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
-COPY . .
+ENV NEXT_TELEMETRY_DISABLED=1 \
+    PORT=3001
+ARG APP_NAME=my-next-app
+COPY --from=scaffold /app/${APP_NAME}/ ./
+EXPOSE 3001
+CMD ["npm", "run", "dev", "--", "-p", "3001", "-H", "0.0.0.0"]
 
-# Set production env for build
-ENV NODE_ENV=production
-
-# Build Next.js app
+# ---------- Prod stage: builds and runs optimized server ----------
+FROM node:20-alpine AS prod
+WORKDIR /app
+ENV NODE_ENV=production \
+    NEXT_TELEMETRY_DISABLED=1 \
+    PORT=3001
+ARG APP_NAME=my-next-app
+COPY --from=scaffold /app/${APP_NAME}/ ./
 RUN npm run build
-
-# ---------- Runtime ----------
-FROM base AS runner
-WORKDIR /app
-ENV NODE_ENV=production
-
-# Create non-root user
-RUN addgroup -g 1001 -S nodejs && adduser -S nextjs -u 1001
-
-# Copy standalone server and public assets
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
-
-USER nextjs
-
-# Expose port
-EXPOSE 3000
-
-ENV PORT=3000
-
-# Start Next.js
-CMD ["node", "server.js"]
+EXPOSE 3001
+CMD ["npm", "start", "--", "-p", "3001", "-H", "0.0.0.0"]

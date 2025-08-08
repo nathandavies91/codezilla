@@ -1,15 +1,18 @@
 version: "3.9"
 services:
   web:
-    build: .
-    image: codezilla-next:dev
-    container_name: codezilla-next
+    build:
+      context: .
+      target: dev
+      args:
+        APP_NAME: my-next-app
+        NEXT_FLAGS: "--ts --eslint --tailwind --app --src-dir --import-alias @/* --use-npm"
+    image: my-next-app:dev
+    container_name: my-next-app
     ports:
-      - "3000:3000"
+      - "3001:3001"
     environment:
       - NODE_ENV=development
-    volumes:
-      - .:/app
-      
-      - /app/node_modules
-    command: sh -c "npm install && npm run dev"
+      - PORT=3001
+    command: ["npm", "run", "dev", "--", "-p", "3001", "-H", "0.0.0.0"]
+    # No volumes: app is created entirely inside the container
