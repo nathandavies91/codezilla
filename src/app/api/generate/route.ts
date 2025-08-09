@@ -1,11 +1,22 @@
 import { NextResponse } from "next/server";
+import {
+  writeFileContent,
+  normalizeSlashes,
+  NO_STORE_HEADERS,
+} from "@/server/fsService";
 
 // GET /api/generate
 export async function GET(_: Request) {
-  return NextResponse.json({ message: "Hello from Codezilla API" });
+  return NextResponse.json(
+    { message: "Hello from Codezilla API" },
+    { headers: NO_STORE_HEADERS }
+  );
 }
 
 // POST /api/generate
+// Body: { prompt: string }
+// Behavior: Requests multi-file JSON from LLM: { files: [{ path, content }] }
+// Saves each file (container-aware) and returns list of saved paths plus parent directories for UI refresh.
 export async function POST(req: Request) {
   try {
     const body = await req.json().catch(() => ({}));
@@ -13,15 +24,30 @@ export async function POST(req: Request) {
     if (!prompt) {
       return NextResponse.json(
         { error: "Missing 'prompt' in request body" },
-        { status: 400 }
+        { status: 400, headers: NO_STORE_HEADERS }
       );
     }
 
     const apiKey = process.env.OPENAI_API_KEY;
 
-    // If an API key is available, try generating via OpenAI
+    let files: { path: string; content: string }[] | null = null;
+
     if (apiKey) {
       try {
+        // Ask model for strict JSON with a files array tailored for Next.js
+        const system = `You are a code generator for a Next.js (App Router) TypeScript project. OUTPUT ONLY strict JSON (no markdown, no backticks) matching this exact shape: { "files": [ { "path": string, "content": string } ] }. Rules:
+1. Each files[i].path is a POSIX style relative path (no leading '/', no '..').
+2. Provide minimal but complete set of files for the user's request.
+3. Always include at least: a page component (e.g. src/app/generated/page.tsx), at least one supporting component in src/components if useful, and a CSS file (module or global) referenced by the page (e.g. src/app/generated/styles.css or a module next to a component).
+4. Use React functional components with TypeScript. Default export the page component.
+5. If you add components use import paths relative to project root (e.g. '@/components/MyWidget') only if alias '@' is assumed, otherwise use relative paths from the file. Prefer '@/components' alias.
+6. Keep code self-contained (no external npm installs).
+7. Do NOT include package.json, node_modules, lockfiles, .env, README, or test files unless explicitly requested.
+8. Use modern Next.js conventions (no 'use client' unless interactivity needed).
+9. Keep CSS minimal and reference it properly (import './styles.css' inside the page or use module).
+10. No explanations, ONLY the JSON object.`;
+        const user = `Generate the minimal set of Next.js files for this request and include their contents. Prompt: ${prompt}`;
+
         const completionRes = await fetch(
           "https://api.openai.com/v1/chat/completions",
           {
@@ -32,75 +58,105 @@ export async function POST(req: Request) {
             },
             body: JSON.stringify({
               model: "gpt-4o-mini",
-              temperature: 0.7,
+              temperature: 0.4,
               messages: [
-                {
-                  role: "system",
-                  content:
-                    "You are a code generator that outputs only a complete, self-contained HTML document with inline CSS and JavaScript when needed. Do not include markdown, backticks, or explanations.",
-                },
-                {
-                  role: "user",
-                  content: `Build this as a single HTML file:\n${prompt}`,
-                },
+                { role: "system", content: system },
+                { role: "user", content: user },
               ],
             }),
           }
         );
 
-        if (!completionRes.ok) {
-          const err = await completionRes.text();
-          console.error("OpenAI error:", err);
-          // Fall through to local fallback below
-        } else {
+        if (completionRes.ok) {
           const json = await completionRes.json();
-          const content = json?.choices?.[0]?.message?.content?.trim?.();
-          if (content) {
-            return NextResponse.json({ code: content });
+          const raw = json?.choices?.[0]?.message?.content?.trim?.() || "";
+          // Try direct JSON parse; if wrapped in code fences, strip them
+          const cleaned = raw
+            .replace(/^```(?:json)?/i, "")
+            .replace(/```$/i, "")
+            .trim();
+          try {
+            const parsed = JSON.parse(cleaned);
+            if (parsed && Array.isArray(parsed.files)) {
+              files = parsed.files
+                .filter(
+                  (f: any) =>
+                    f &&
+                    typeof f.path === "string" &&
+                    typeof f.content === "string"
+                )
+                .map((f: any) => ({ path: f.path, content: f.content }));
+            }
+          } catch {
+            // parsing failed; will fallback
           }
+        } else {
+          const errTxt = await completionRes.text();
+          console.error("OpenAI error:", errTxt);
         }
       } catch (err) {
         console.error("Error calling OpenAI:", err);
-        // Fall through to fallback
       }
     }
 
-    // Fallback simple HTML based on prompt
-    const html = `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset=\"utf-8\" />
-  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />
-  <title>Generated: ${prompt.replace(/</g, "&lt;")}</title>
-  <style>
-    :root{ --indigo:#4f46e5 }
-    *{ box-sizing:border-box }
-    body{ font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial, \"Apple Color Emoji\", \"Segoe UI Emoji\"; margin:0; padding:2rem; background:#f5f5f7; color:#111 }
-    header{ display:flex; align-items:center; gap:.75rem; margin-bottom:1rem }
-    h1{ color:var(--indigo); margin:0 }
-    .card{ background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:1rem; box-shadow: 0 1px 2px rgba(0,0,0,.04) }
-    .muted{ color:#6b7280 }
-    code{ background:#f3f4f6; padding:.125rem .375rem; border-radius:.375rem }
-  </style>
-</head>
-<body>
-  <header>
-    <svg width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M12 2l3 7h7l-5.5 4 2 7L12 17l-6.5 3 2-7L2 9h7l3-7z\" fill=\"var(--indigo)\" opacity=\".9\"/></svg>
-    <h1>Generated Prototype</h1>
-  </header>
+    if (!files || files.length === 0) {
+      // Fallback: single HTML file
+      const safe = prompt.replace(/</g, "&lt;");
+      files = [
+        {
+          path: "generated.html",
+          content: `<!DOCTYPE html><html><head><meta charset=\"utf-8\"/><title>${safe}</title></head><body><h1>${safe}</h1><p>Set OPENAI_API_KEY to enable multi-file generation.</p></body></html>`,
+        },
+      ];
+    }
 
-  <div class=\"card\">
-    <p class=\"muted\">Prompt:</p>
-    <p><code>${prompt.replace(/</g, "&lt;")}</code></p>
-  </div>
+    // Sanitize and save
+    const saved: string[] = [];
+    for (const f of files) {
+      let p = normalizeSlashes(f.path || "").trim();
+      // Remove leading slashes
+      if (p.startsWith("/")) p = p.replace(/^\/+/, "");
+      // Disallow parent traversal
+      if (!p || p.split("/").some((seg) => seg === ".." || !seg)) continue;
+      // Basic length guard
+      if (p.length > 300) continue;
+      try {
+        await writeFileContent(p, f.content);
+        saved.push(p);
+      } catch (err) {
+        console.error("Failed to write", p, err);
+      }
+    }
 
-  <p class=\"muted\">Hint: set an <code>OPENAI_API_KEY</code> env var on the server to enable LLM-powered generation.</p>
-</body>
-</html>`;
+    if (saved.length === 0) {
+      return NextResponse.json(
+        { error: "No files were saved" },
+        { status: 500, headers: NO_STORE_HEADERS }
+      );
+    }
 
-    return NextResponse.json({ code: html });
+    // Derive parent directories to help client refresh the explorer view
+    const parentsSet = new Set<string>();
+    for (const p of saved) {
+      const parts = p.split("/");
+      // root always
+      parentsSet.add("");
+      for (let i = 0; i < parts.length - 1; i++) {
+        const dir = parts.slice(0, i + 1).join("/");
+        if (dir) parentsSet.add(dir);
+      }
+    }
+    const parents = Array.from(parentsSet).sort();
+
+    return NextResponse.json(
+      { saved, files: saved.length, parents },
+      { headers: NO_STORE_HEADERS }
+    );
   } catch (e) {
     console.error(e);
-    return NextResponse.json({ error: "Unexpected error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Unexpected error" },
+      { status: 500, headers: NO_STORE_HEADERS }
+    );
   }
 }
