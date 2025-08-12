@@ -1,7 +1,7 @@
 "use client";
 import { useState, useRef } from "react";
 import CodeEditor from "@/components/Editor";
-import Preview from "@/components/Preview";
+import Preview, { PreviewHandle } from "@/components/Preview";
 import FileExplorer, { FileExplorerHandle } from "@/components/FileExplorer";
 
 export default function Home() {
@@ -12,6 +12,57 @@ export default function Home() {
   const [editorLanguage, setEditorLanguage] = useState<string>("html");
   const [saving, setSaving] = useState(false);
   const explorerRef = useRef<FileExplorerHandle | null>(null);
+  const previewRef = useRef<PreviewHandle | null>(null);
+
+  // Function to convert file path to route
+  function pathToRoute(filePath: string): string {
+    // Handle Next.js app directory routing
+    if (filePath.startsWith("src/app/")) {
+      let route = filePath.replace("src/app", "");
+      
+      // Remove page.tsx, layout.tsx, etc.
+      route = route.replace(/\/(page|layout|loading|error|not-found|global-error|template|default)\.(tsx?|jsx?)$/, "");
+      
+      // If empty route, default to "/"
+      if (!route || route === "") {
+        route = "/";
+      }
+      
+      // Ensure route starts with "/"
+      if (!route.startsWith("/")) {
+        route = "/" + route;
+      }
+      
+      return route;
+    }
+    
+    // Handle pages directory routing (if applicable)
+    if (filePath.startsWith("src/pages/")) {
+      let route = filePath.replace("src/pages", "");
+      
+      // Remove file extensions
+      route = route.replace(/\.(tsx?|jsx?)$/, "");
+      
+      // Handle index files
+      if (route.endsWith("/index")) {
+        route = route.replace("/index", "");
+      }
+      
+      // If empty route, default to "/"
+      if (!route || route === "") {
+        route = "/";
+      }
+      
+      // Ensure route starts with "/"
+      if (!route.startsWith("/")) {
+        route = "/" + route;
+      }
+      
+      return route;
+    }
+    
+    return "/";
+  }
 
   async function generateCode() {
     setLoading(true);
@@ -115,6 +166,12 @@ export default function Home() {
     setCurrentFile(path);
     setCode(content);
     setEditorLanguage(language);
+    
+    // Auto-update preview route if it's a page file
+    if (path.includes("/page.") || path.includes("/layout.") || path.startsWith("src/pages/")) {
+      const route = pathToRoute(path);
+      previewRef.current?.updateRoute(route);
+    }
   }
 
   return (
@@ -172,7 +229,7 @@ export default function Home() {
           </div>
           <div className="w-1/2 p-6 bg-gradient-to-br from-gray-50 via-blue-100 to-purple-200 rounded-r-xl shadow-lg">
             <div className="h-full rounded-lg overflow-hidden">
-              <Preview code={code} />
+              <Preview ref={previewRef} code={code} />
             </div>
           </div>
         </div>
