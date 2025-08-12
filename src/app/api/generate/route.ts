@@ -17,10 +17,10 @@ export async function POST(req: Request) {
       );
     }
 
-    const apiKey = process.env.OPENAI_API_KEY;
 
-    // If an API key is available, try generating via OpenAI
-    if (apiKey) {
+    // Choose LLM provider
+    const provider = process.env.LLM_PROVIDER?.toLowerCase();
+    if (provider === "openai" && process.env.OPENAI_API_KEY) {
       try {
         const completionRes = await fetch(
           "https://api.openai.com/v1/chat/completions",
@@ -28,7 +28,7 @@ export async function POST(req: Request) {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              Authorization: `Bearer ${apiKey}`,
+              Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
             },
             body: JSON.stringify({
               model: "gpt-4o-mini",
@@ -47,11 +47,9 @@ export async function POST(req: Request) {
             }),
           }
         );
-
         if (!completionRes.ok) {
           const err = await completionRes.text();
           console.error("OpenAI error:", err);
-          // Fall through to local fallback below
         } else {
           const json = await completionRes.json();
           const content = json?.choices?.[0]?.message?.content?.trim?.();
@@ -61,7 +59,45 @@ export async function POST(req: Request) {
         }
       } catch (err) {
         console.error("Error calling OpenAI:", err);
-        // Fall through to fallback
+      }
+    } else if (provider === "gemini" && process.env.GEMINI_API_KEY) {
+      try {
+        const geminiModel = process.env.GEMINI_MODEL || "gemini-pro";
+        const geminiRes = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${process.env.GEMINI_API_KEY}`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              contents: [
+                {
+                  role: "user",
+                  parts: [
+                    { text: `Build this as a single HTML file:\n${prompt}` },
+                  ],
+                },
+              ],
+              generationConfig: {
+                temperature: 0.7,
+              },
+            }),
+          }
+        );
+        if (!geminiRes.ok) {
+          const err = await geminiRes.text();
+          console.error("Gemini error:", err);
+        } else {
+          const json = await geminiRes.json();
+          // Gemini returns candidates[0].content.parts[0].text
+          const content = json?.candidates?.[0]?.content?.parts?.[0]?.text?.trim?.();
+          if (content) {
+            return NextResponse.json({ code: content });
+          }
+        }
+      } catch (err) {
+        console.error("Error calling Gemini:", err);
       }
     }
 

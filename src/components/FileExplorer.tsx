@@ -250,12 +250,19 @@ export default function FileExplorer({ onOpenFile, root = "" }: Props) {
       <div key={dir}>
         {dir !== root && (
           <div
-            className="flex items-center cursor-pointer select-none py-1"
+            className="flex items-center cursor-pointer select-none py-1 hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 rounded-lg transition"
             style={{ paddingLeft: depth * INDENT }}
             onClick={() => toggle(dir)}
           >
-            <span className="mr-1 text-xs">{isOpen ? "▼" : "▶"}</span>
-            <span className="font-medium">
+            <span className="mr-1 text-xs">
+              {isOpen ? (
+                <svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M6 8l4 4 4-4" stroke="#6366f1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              ) : (
+                <svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M8 6l4 4-4 4" stroke="#6366f1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              )}
+            </span>
+            <span className="font-medium text-indigo-700">
+              <svg className="inline mr-1" width="16" height="16" viewBox="0 0 20 20" fill="none"><rect x="3" y="6" width="14" height="8" rx="2" fill="#a5b4fc"/><rect x="3" y="6" width="14" height="2" rx="1" fill="#6366f1"/></svg>
               {dir.split("/").slice(-1)[0] || "/"}
             </span>
           </div>
@@ -264,7 +271,7 @@ export default function FileExplorer({ onOpenFile, root = "" }: Props) {
           <div>
             {loadingDir === dir && !entries && (
               <div
-                className="text-xs text-gray-500 py-1"
+                className="text-xs text-gray-400 py-1 animate-pulse"
                 style={{ paddingLeft: (depth + 1) * INDENT }}
               >
                 Loading...
@@ -277,13 +284,15 @@ export default function FileExplorer({ onOpenFile, root = "" }: Props) {
               return (
                 <div
                   key={node.path}
-                  className="flex items-center cursor-pointer text-sm hover:bg-gray-100 rounded px-1 py-0.5"
+                  className="flex items-center cursor-pointer text-base font-semibold hover:bg-gradient-to-r hover:from-blue-100 hover:to-purple-100 rounded-lg px-2 py-2 transition group"
                   style={{ paddingLeft: (depth + 1) * INDENT }}
                   onClick={() => openFile(node.path)}
                   title={node.path}
                 >
-                  <span className="mr-1">📄</span>
-                  <span className="truncate">{node.name}</span>
+                  <span className="mr-2">
+                    <svg width="18" height="18" viewBox="0 0 20 20" fill="none"><rect x="4" y="4" width="12" height="12" rx="2" fill="#f3f4f6" stroke="#6366f1" strokeWidth="1.5"/></svg>
+                  </span>
+                  <span className="truncate group-hover:text-indigo-700 text-gray-900" style={{letterSpacing: "0.01em"}}>{node.name}</span>
                 </div>
               );
             })}
@@ -294,29 +303,38 @@ export default function FileExplorer({ onOpenFile, root = "" }: Props) {
   }
 
   return (
-    <div className="h-full overflow-auto text-sm">
-      <div className="flex items-center justify-between py-1">
+    <div className="h-full overflow-auto text-sm bg-gradient-to-br from-white via-blue-50 to-purple-50 rounded-xl shadow-md p-2">
+      <div className="flex items-center justify-between py-2 mb-2">
         <div
-          className="flex items-center cursor-pointer select-none font-medium"
+          className="flex items-center cursor-pointer select-none font-bold text-indigo-700 text-base"
           onClick={() => toggle(root)}
         >
-          <span className="mr-1 text-xs">{expanded[root] ? "▼" : "▶"}</span>
-          <span>{root || "/"}</span>
+          <span className="mr-1 text-xs">
+            {expanded[root] ? (
+              <svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M6 8l4 4 4-4" stroke="#6366f1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            ) : (
+              <svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M8 6l4 4-4 4" stroke="#6366f1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            )}
+          </span>
+          <span>
+            <svg className="inline mr-1" width="16" height="16" viewBox="0 0 20 20" fill="none"><rect x="3" y="6" width="14" height="8" rx="2" fill="#a5b4fc"/><rect x="3" y="6" width="14" height="2" rx="1" fill="#6366f1"/></svg>
+            {root || "/"}
+          </span>
         </div>
         <div className="flex items-center gap-2">
           <button
-            className="px-2 py-1 text-xs bg-gray-200 rounded hover:bg-gray-300"
+            className="px-3 py-1 text-xs bg-gradient-to-r from-indigo-200 to-purple-200 rounded-lg hover:from-indigo-300 hover:to-purple-300 text-indigo-700 font-semibold shadow transition"
             onClick={createFolder}
             title="New folder"
           >
-            New Folder
+            <svg className="inline mr-1" width="14" height="14" viewBox="0 0 20 20" fill="none"><rect x="4" y="8" width="12" height="8" rx="2" fill="#a5b4fc"/><rect x="4" y="8" width="12" height="2" rx="1" fill="#6366f1"/><path d="M10 12v4m2-2h-4" stroke="#6366f1" strokeWidth="1.5" strokeLinecap="round"/></svg>New Folder
           </button>
           <button
-            className="px-2 py-1 text-xs bg-gray-200 rounded hover:bg-gray-300"
+            className="px-3 py-1 text-xs bg-gradient-to-r from-blue-200 to-teal-200 rounded-lg hover:from-blue-300 hover:to-teal-300 text-blue-700 font-semibold shadow transition"
             onClick={createFile}
             title="New file"
           >
-            New File
+            <svg className="inline mr-1" width="14" height="14" viewBox="0 0 20 20" fill="none"><rect x="4" y="4" width="12" height="12" rx="2" fill="#f3f4f6" stroke="#6366f1" strokeWidth="1.5"/><path d="M10 8v4m2-2h-4" stroke="#6366f1" strokeWidth="1.5" strokeLinecap="round"/></svg>New File
           </button>
         </div>
       </div>
