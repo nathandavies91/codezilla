@@ -1,5 +1,11 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import {
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+  forwardRef,
+} from "react";
 
 export type FileNode = {
   name: string;
@@ -16,6 +22,10 @@ type Props = {
     language: string;
   }) => void;
   root?: string; // starting dir, default ""
+};
+
+export type FileExplorerHandle = {
+  refreshParents: (parents: string[]) => Promise<void>;
 };
 
 function extToLanguage(path: string): string {
@@ -70,7 +80,7 @@ const sortEntries = (list: FileNode[]): FileNode[] => {
   return [...dirs, ...files];
 };
 
-export default function FileExplorer({ onOpenFile, root = "" }: Props) {
+function FileExplorerInner({ onOpenFile, root = "" }: Props, ref: any) {
   const [entriesCache, setEntriesCache] = useState<DirEntries>({});
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [loadingDir, setLoadingDir] = useState<string | null>(null);
@@ -120,6 +130,17 @@ export default function FileExplorer({ onOpenFile, root = "" }: Props) {
       }
     }
   }
+
+  async function refreshParents(parents: string[]) {
+    const unique = Array.from(new Set(parents.map((p) => p || "")));
+    // Load sequentially (ensures ordering) but could be parallel
+    for (const p of unique) {
+      await loadDir(p);
+      setExpanded((prev) => ({ ...prev, [p]: true }));
+    }
+  }
+
+  useImperativeHandle(ref, () => ({ refreshParents }));
 
   async function openFile(path: string) {
     // Abort previous read
@@ -324,3 +345,6 @@ export default function FileExplorer({ onOpenFile, root = "" }: Props) {
     </div>
   );
 }
+
+const FileExplorer = forwardRef<FileExplorerHandle, Props>(FileExplorerInner);
+export default FileExplorer;

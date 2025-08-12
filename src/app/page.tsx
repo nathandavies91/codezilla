@@ -1,8 +1,8 @@
 "use client";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import CodeEditor from "@/components/Editor";
 import Preview from "@/components/Preview";
-import FileExplorer from "@/components/FileExplorer";
+import FileExplorer, { FileExplorerHandle } from "@/components/FileExplorer";
 
 export default function Home() {
   const [code, setCode] = useState("");
@@ -11,6 +11,7 @@ export default function Home() {
   const [currentFile, setCurrentFile] = useState<string | null>(null);
   const [editorLanguage, setEditorLanguage] = useState<string>("html");
   const [saving, setSaving] = useState(false);
+  const explorerRef = useRef<FileExplorerHandle | null>(null);
 
   async function generateCode() {
     setLoading(true);
@@ -19,12 +20,48 @@ export default function Home() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt }),
+        cache: "no-store",
       });
       const data = await res.json();
       if (res.ok) {
-        setCode(data.code || "");
-        setCurrentFile(null); // viewing generated output (not tied to a file)
-        setEditorLanguage("html");
+        // Default open first generated file if any, else clear
+        if (Array.isArray(data.saved) && data.saved.length > 0) {
+          // Auto-open first .tsx else first file
+          const firstTsx = data.saved.find((p: string) => p.endsWith(".tsx"));
+          const openPath = firstTsx || data.saved[0];
+          // Fetch content of opened file
+          try {
+            const rf = await fetch(
+              `/api/fs/read?path=${encodeURIComponent(openPath)}`,
+              { cache: "no-store" }
+            );
+            if (rf.ok) {
+              const rj = await rf.json();
+              setCode(rj.content || "");
+              setCurrentFile(openPath);
+              setEditorLanguage(
+                openPath.endsWith(".tsx")
+                  ? "typescript"
+                  : openPath.endsWith(".ts")
+                  ? "typescript"
+                  : openPath.endsWith(".css")
+                  ? "css"
+                  : openPath.endsWith(".js")
+                  ? "javascript"
+                  : "plaintext"
+              );
+            }
+          } catch {}
+        } else if (data.code) {
+          // Legacy single-file fallback
+          setCode(data.code || "");
+          setCurrentFile(null);
+          setEditorLanguage("html");
+        }
+        // Refresh file explorer parents
+        if (Array.isArray(data.parents) && explorerRef.current) {
+          explorerRef.current.refreshParents(data.parents);
+        }
       } else {
         console.error(data.error || "Failed to generate code");
       }
@@ -89,7 +126,7 @@ export default function Home() {
       <main className="flex flex-1 min-h-0">
         <aside className="w-64 border-r p-3 overflow-auto bg-white">
           <div className="text-sm font-semibold mb-2">Files</div>
-          <FileExplorer onOpenFile={onOpenFile} root="src" />
+          <FileExplorer ref={explorerRef} onOpenFile={onOpenFile} root="src" />
         </aside>
 
         <div className="flex-1 flex min-h-0">
