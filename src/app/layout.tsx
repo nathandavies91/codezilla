@@ -11,7 +11,7 @@ const font = Open_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Codezilla",
+  title: "Code editor",
 };
 
 export default function RootLayout({

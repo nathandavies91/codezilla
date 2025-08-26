@@ -9,7 +9,7 @@ export const Header = () => {
       <header>
         <Link href="/">
           <Heading level={1}>
-            Codezilla
+            Code editor
           </Heading>
         </Link>
       </header>
