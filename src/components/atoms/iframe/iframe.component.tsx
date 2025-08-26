@@ -10,7 +10,7 @@ export const Iframe = (props: IframeProps) => {
         {`
           iframe {
             border: 0;
-            height: 100vh;
+            height: 100%;
             width: 100%;
           }
         `}
