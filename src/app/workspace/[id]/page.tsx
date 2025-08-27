@@ -27,7 +27,7 @@ export default function Page() {
     setCode(content);
     
     // Auto-update preview route if it's a page file
-    if (path.includes("/page.") || path.includes("/layout.") || path.startsWith("src/pages/")) {
+    if (path.includes("/layout.") || path.includes("/page.") || path.startsWith("src/pages/")) {
       const route = pathToRoute(path);
       appPreviewRef.current?.updateRoute(route);
     }
@@ -79,6 +79,7 @@ export default function Page() {
       <WorkspaceItem minWidth={400}>
         <AppPreview
           appBaseUrl={appBaseUrl}
+          ref={appPreviewRef}
         />
       </WorkspaceItem>
     </Workspace>
