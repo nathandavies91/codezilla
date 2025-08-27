@@ -78,16 +78,13 @@ export const FileExplorer = forwardRef<FileExplorerHandle, FileExplorerProps>(({
   const handleCreateFileRequest = async (path?: string) => {
     path ??= root;
 
-    const input = window.prompt(
-      "New file path (relative to project root):",
-      path ? `${path}/new-file.ts` : "new-file.ts"
-    );
+    const input = window.prompt("File name:");
 
     if (!input) {
       return;
     }
 
-    const rel = normalizeRelativePath(input);
+    const newFile = normalizeRelativePath(`${path}/${input}`);
 
     try {
       const res = await fetch("/api/fs/write", {
@@ -97,11 +94,11 @@ export const FileExplorer = forwardRef<FileExplorerHandle, FileExplorerProps>(({
           "Cache-Control": "no-store",
         },
         cache: "no-store",
-        body: JSON.stringify({ path: rel, content: "" }),
+        body: JSON.stringify({ path: newFile, content: "" }),
       });
 
       if (res.ok) {
-        const parent = rel.split("/").slice(0, -1).join("/");
+        const parent = newFile.split("/").slice(0, -1).join("/");
         await Promise.all([
           loadDirectory(parent),
           parent !== root ? loadDirectory(root) : Promise.resolve(),
@@ -109,7 +106,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, FileExplorerProps>(({
         setExpanded((prev) => ({ ...prev, [parent]: true }));
         onOpenFileRequest({
           content: "",
-          path: rel,
+          path: newFile,
         });
       }
       else {
@@ -125,16 +122,14 @@ export const FileExplorer = forwardRef<FileExplorerHandle, FileExplorerProps>(({
   const handleCreateFolderRequest = async (path?: string) => {
     path ??= root;
 
-    const input = window.prompt(
-      "New folder path (relative to project root):",
-      path ? `${path}/new-folder` : "new-folder"
-    );
+    const input = window.prompt("Folder name:");
 
     if (!input) {
       return;
     }
 
-    const rel = normalizeRelativePath(input);
+    console.log(path, input)
+    const newFolder = normalizeRelativePath(`${path}/${input}`);
 
     try {
       const res = await fetch("/api/fs/mkdir", {
@@ -144,17 +139,17 @@ export const FileExplorer = forwardRef<FileExplorerHandle, FileExplorerProps>(({
           "Cache-Control": "no-store",
         },
         cache: "no-store",
-        body: JSON.stringify({ path: rel }),
+        body: JSON.stringify({ path: newFolder }),
       });
       
       if (res.ok) {
-        const parent = rel.split("/").slice(0, -1).join("/");
+        const parent = newFolder.split("/").slice(0, -1).join("/");
         // Refresh parent and root if needed
         await Promise.all([
           loadDirectory(parent),
           parent !== root ? loadDirectory(root) : Promise.resolve(),
         ]);
-        setExpanded((prev) => ({ ...prev, [parent]: true, [rel]: true }));
+        setExpanded((prev) => ({ ...prev, [parent]: true, [newFolder]: true }));
       }
       else {
         const data = await res.json().catch(() => ({}));
