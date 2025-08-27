@@ -3,14 +3,19 @@
 import Editor, { OnMount } from "@monaco-editor/react";
 import { useEffect, useState } from "react";
 
+import { Button } from "@/components/atoms/button";
+import { Icon, IconVariant } from "@/components/atoms/icon";
+
 import { getLanguageByFilename } from "./code-editor.helpers";
 import { CodeEditorProps } from "./code-editor.types";
 
 export const CodeEditor = ({
-  code,
+  code: parentCode,
   filePath,
+  onSaveRequest,
 }: CodeEditorProps) => {
-  const [colorScheme, setColorScheme] = useState<"light" | "dark">();
+  const [code, setCode] = useState(parentCode);
+  const [colorScheme, setColorScheme] = useState<"light" | "dark">("light");
   const language = getLanguageByFilename(filePath);
 
   useEffect(() => {
@@ -21,6 +26,14 @@ export const CodeEditor = ({
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', handleColorSchemeChange);
     return window.matchMedia('(prefers-color-scheme: dark)').removeEventListener('change', handleColorSchemeChange);
   }, []);
+
+  useEffect(() => {
+    setCode(parentCode);
+  }, [parentCode]);
+
+  const handleChange = (value?: string) => {
+    setCode(value ?? "");
+  }
 
   const handleEditorDidMount = (
     editor: Parameters<OnMount>[0],
@@ -54,6 +67,10 @@ export const CodeEditor = ({
     editor.setModel(model);
   }
 
+  const handleSaveRequest = async () => {
+    await onSaveRequest?.(filePath!, code ?? "");
+  }
+
   return (
     <>
       <section>
@@ -62,11 +79,18 @@ export const CodeEditor = ({
             <span className="file-path">{filePath}</span>
           )}
           <div>
-            Save??
+            <Button
+              disabled={!onSaveRequest}
+              onClick={handleSaveRequest}
+              variant="flat"
+            >
+              <Icon variant={IconVariant.Save} />
+            </Button>
           </div>
         </header>
         <Editor
           language={language}
+          onChange={handleChange}
           onMount={handleEditorDidMount}
           options={{
             minimap: {

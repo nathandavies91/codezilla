@@ -14,6 +14,7 @@ export default function Page() {
   const [code, setCode] = useState<string>();
   const explorerRef = useRef<FileExplorerHandle>(null);
   const [filePath, setFilePath] = useState<string>();
+  const [isFileSaving, setIsFileSaving] = useState(false);
 
   const handleOpenFileRequest = ({
     content,
@@ -32,6 +33,31 @@ export default function Page() {
     }
   }
 
+  const handleFileSaveRequest = async (filePath: string, content: string) => {
+    try {
+      setIsFileSaving(true);
+
+      const res = await fetch("/api/fs/write", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path: filePath, content }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        window.alert("Save failed: " + (data?.error || res.statusText));
+      }
+    }
+    catch (e) {
+      console.error(e);
+      window.alert("Save failed");
+    }
+    finally {
+      setCode(content);
+      setIsFileSaving(false);
+    }
+  }
+
   return (
     <Workspace>
       <WorkspaceItem maxWidth={300}>
@@ -46,6 +72,7 @@ export default function Page() {
           <CodeEditor
             code={code}
             filePath={filePath}
+            onSaveRequest={!isFileSaving ? handleFileSaveRequest : undefined}
           />
         </WorkspaceItem>
       ) : <></>}

@@ -1,10 +1,10 @@
 :root {
-  --accent: light-dark(rgba(60, 60, 60, .05), rgba(245, 245, 245, .15));
-  --background: light-dark(#f5f5f5, #09131b);
+  --accent: light-dark(rgba(9, 19, 27, .05), rgba(244, 245, 247, .1));
+  --background: light-dark(#f4f5f7, #09131b);
   --border-color: light-dark(#ddd, #555);
-  --button-background: light-dark(#09131b, #f5f5f5);
-  --button-color: light-dark(#f5f5f5, #09131b);
-  --color: light-dark(#09131b, #f5f5f5);
+  --button-background: light-dark(#09131b, #f4f5f7);
+  --button-color: light-dark(#f4f5f7, #09131b);
+  --color: light-dark(#09131b, #f4f5f7);
 }
 
 * {
