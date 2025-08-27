@@ -5,15 +5,17 @@ export const getIconByFilename = (name: string) => {
 
   switch (extension) {
     case "css":
-      return IconVariant.Css;
+      return IconVariant.Files.Css;
 
     case "js":
+      return IconVariant.Files.Javascript;
+
     case "jsx":
-      return IconVariant.Javascript;
+    case "tsx":
+      return IconVariant.Files.React;
 
     case "ts":
-    case "tsx":
-      return IconVariant.Typescript;
+      return IconVariant.Files.Typescript;
     
     default:
       return IconVariant.File;

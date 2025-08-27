@@ -1,3 +1,4 @@
+import { FaReact } from "react-icons/fa";
 import { IoChevronDown, IoChevronForward } from "react-icons/io5";
 import { MdCss } from "react-icons/md";
 import { RiFile2Fill, RiFileAddFill, RiFolderAddFill, RiJavascriptLine, RiSaveFill } from "react-icons/ri";
@@ -10,9 +11,12 @@ export const IconVariant = {
     Down: IoChevronDown,
     Right: IoChevronForward,
   },
-  Css: MdCss,
+  Files: {
+    Css: MdCss,
+    Javascript: RiJavascriptLine,
+    React: FaReact,
+    Typescript: TbBrandTypescript,
+  },
   File: RiFile2Fill,
-  Javascript: RiJavascriptLine,
   Save: RiSaveFill,
-  Typescript: TbBrandTypescript,
 }
