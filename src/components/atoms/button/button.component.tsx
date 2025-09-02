@@ -20,8 +20,10 @@ export const Button = ({
             border-radius: .31em;
             color: ${variant === "solid" ? "var(--button-color)" : "inherit"};
             cursor: pointer;
+            display: inline-flex;
             font: inherit;
-            padding: ${variant === "flat" ? "0" : ".62em 1em"};
+            font-weight: bold;
+            padding: ${variant === "flat" ? "0" : ".31em .62em"};
 
             &[disabled] {
               cursor: not-allowed;

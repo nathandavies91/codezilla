@@ -1,10 +1,12 @@
 :root {
-  --accent: light-dark(rgba(9, 19, 27, .05), rgba(244, 245, 247, .1));
-  --background: light-dark(#f4f5f7, #09131b);
-  --border-color: light-dark(#ddd, #555);
-  --button-background: light-dark(#09131b, #f4f5f7);
-  --button-color: light-dark(#f4f5f7, #09131b);
-  --color: light-dark(#09131b, #f4f5f7);
+  color-scheme: light dark;
+
+  --accent: light-dark(#fff, #1c1d1d);
+  --background: light-dark(#f4f5f7, #111);
+  --border-color: light-dark(rgba(28, 29, 29, .4), rgba(244, 245, 247, .4));
+  --button-background: light-dark(#1c1d1d, #f4f5f7);
+  --button-color: light-dark(#f4f5f7, #1c1d1d);
+  --color: light-dark(#1c1d1d, #f4f5f7);
 }
 
 * {
@@ -23,12 +25,16 @@ body {
   color: var(--color);
   display: flex;
   flex-direction: column;
-  font-size: 16px;
+  font-size: 15px;
   height: 100%;
 }
 
 html {
   height: 100%;
+}
+
+.icon {
+  font-size: 1.31em;
 }
 
 main {

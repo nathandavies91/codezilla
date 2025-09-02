@@ -1,6 +1,9 @@
 "use client";
 
-import { WorkspaceItemProps } from "./workspace.types";
+import { WorkspaceItemBody } from "./body";
+import { WorkspaceItemFooter } from "./footer";
+import { WorkspaceItemHeader } from "./header";
+import { WorkspaceItemProps } from "./workspace-item.types";
 
 export const WorkspaceItem = ({
   children,
@@ -15,24 +18,21 @@ export const WorkspaceItem = ({
       <style jsx>
         {`
           .container {
-            background: var(--accent);
-            flex: 1 1 auto;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
             max-width: ${maxWidth ? `${maxWidth}px` : "auto"};
             min-width: ${minWidth ? `${minWidth}px` : "auto"};
             overflow: auto;
             resize: horizontal;
-          }
-        `}
-      </style>
-      <style jsx global>
-        {`
-          .workspace-item {
-            + & {
-              border-left: 3px solid var(--border-color);
-            }
+            width: 100%;
           }
         `}
       </style>
     </>
   )
 }
+
+WorkspaceItem.Body = WorkspaceItemBody;
+WorkspaceItem.Footer = WorkspaceItemFooter;
+WorkspaceItem.Header = WorkspaceItemHeader;

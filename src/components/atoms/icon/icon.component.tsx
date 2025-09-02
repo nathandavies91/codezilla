@@ -5,6 +5,6 @@ export const Icon = ({
   ...props
 }: IconProps) => {
   return (
-    <Variant {...props} />
+    <Variant className="icon" {...props} />
   );
 };

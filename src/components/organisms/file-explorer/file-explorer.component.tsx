@@ -209,12 +209,12 @@ export const FileExplorer = forwardRef<FileExplorerHandle, FileExplorerProps>(({
     }
   }
 
-  const renderDirectory = (dir: string) => {
+  const renderDirectory = (dir: string, isRoot?: boolean) => {
     const entries = entriesCache[dir];
     const isOpen = !!expanded[dir];
 
     return (
-      <div key={dir} style={{ marginLeft: 12 }}>
+      <div key={dir} style={{ marginLeft: isRoot ? 0 : 12 }}>
         <Folder
           isOpen={isOpen}
           name={dir.split("/").slice(-1)[0] || "/" || "/"}
@@ -265,18 +265,5 @@ export const FileExplorer = forwardRef<FileExplorerHandle, FileExplorerProps>(({
 
   useImperativeHandle(ref, () => ({ refreshParents }));
 
-  return (
-    <>
-      <div className="container">
-        {renderDirectory(root)}
-      </div>
-      <style jsx>
-        {`
-          .container {
-            padding: 1em;
-          }
-        `}
-      </style>
-    </>
-  )
+  return renderDirectory(root, true);
 })

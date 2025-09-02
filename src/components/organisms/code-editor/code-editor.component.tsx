@@ -3,16 +3,13 @@
 import Editor, { OnMount } from "@monaco-editor/react";
 import { useEffect, useState } from "react";
 
-import { Button } from "@/components/atoms/button";
-import { Icon, IconVariant } from "@/components/atoms/icon";
-
 import { getLanguageByFilename } from "./code-editor.helpers";
 import { CodeEditorProps } from "./code-editor.types";
 
 export const CodeEditor = ({
   code: parentCode,
   filePath,
-  onSaveRequest,
+  onChange,
 }: CodeEditorProps) => {
   const [code, setCode] = useState(parentCode);
   const [colorScheme, setColorScheme] = useState<"light" | "dark">("light");
@@ -26,6 +23,10 @@ export const CodeEditor = ({
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', handleColorSchemeChange);
     return window.matchMedia('(prefers-color-scheme: dark)').removeEventListener('change', handleColorSchemeChange);
   }, []);
+
+  useEffect(() => {
+    onChange?.(code ?? "");
+  }, [code]);
 
   useEffect(() => {
     setCode(parentCode);
@@ -67,57 +68,18 @@ export const CodeEditor = ({
     editor.setModel(model);
   }
 
-  const handleSaveRequest = async () => {
-    await onSaveRequest?.(filePath!, code ?? "");
-  }
-
   return (
-    <>
-      <section>
-        <header>
-          {filePath && (
-            <span className="file-path">{filePath}</span>
-          )}
-          <div>
-            <Button
-              disabled={!onSaveRequest}
-              onClick={handleSaveRequest}
-              variant="flat"
-            >
-              <Icon variant={IconVariant.Save} />
-            </Button>
-          </div>
-        </header>
-        <Editor
-          language={language}
-          onChange={handleChange}
-          onMount={handleEditorDidMount}
-          options={{
-            minimap: {
-              enabled: false,
-            },
-          }}
-          theme={colorScheme === "light" ? "light" : "vs-dark"}
-          value={code}
-        />
-      </section>
-      <style jsx>
-        {`
-          .file-path {
-            flex-grow: 1;
-          }
-          
-          header {
-            display: flex;
-            padding: 1em;
-          }
-          
-          section {
-            height: 100%;
-            max-height: 100dvh;
-          }
-        `}
-      </style>
-    </>
+    <Editor
+      language={language}
+      onChange={handleChange}
+      onMount={handleEditorDidMount}
+      options={{
+        minimap: {
+          enabled: false,
+        },
+      }}
+      theme={colorScheme === "light" ? "light" : "vs-dark"}
+      value={code}
+    />
   )
 }

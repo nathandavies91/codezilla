@@ -9,12 +9,11 @@ export const Input = (props: InputProps) => {
       <style jsx>
         {`
           input {
-            background: white;
+            background: transparent;
             border: 0;
-            border-radius: 2em;
-            color: black;
+            color: inherit;
             font: inherit;
-            padding: .62em 1em;
+            outline: none;
             width: 100%;
           }
         `}

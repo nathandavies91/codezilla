@@ -21,17 +21,23 @@ export const Folder = ({
           <div className="actions">
             {!!onCreateFolderRequest && (
               <div>
-                <Button onClick={onCreateFolderRequest} variant="flat">
+                <Button
+                  aria-label="Add folder"
+                  onClick={onCreateFolderRequest}
+                  variant="flat"
+                >
                   <Icon variant={IconVariant.AddFolder} />
-                  <span hidden>Add folder</span>
                 </Button>
               </div>
             )}
             {!!onCreateFileRequest && (
               <div>
-                <Button onClick={onCreateFileRequest} variant="flat">
+                <Button
+                  aria-label="Add file"
+                  onClick={onCreateFileRequest}
+                  variant="flat"
+                >
                   <Icon variant={IconVariant.AddFile} />
-                  <span hidden>Add file</span>
                 </Button>
               </div>
             )}

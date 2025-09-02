@@ -1,10 +1,6 @@
-import { ReactElement, ReactNode } from "react";
+import { ReactElement } from "react";
 
-export type WorkspaceItemProps = {
-  children: ReactNode;
-  maxWidth?: number;
-  minWidth?: number;
-}
+import { WorkspaceItemProps } from "./item";
 
 export type WorkspaceProps = {
   children: ReactElement<WorkspaceItemProps>[];

@@ -1,6 +1,6 @@
 "use client";
 
-import { WorkspaceItem } from "./workspace-item.component";
+import { WorkspaceItem } from "./item";
 import { WorkspaceProps } from "./workspace.types";
 
 export const Workspace = ({
@@ -14,9 +14,9 @@ export const Workspace = ({
       <style jsx>
         {`
           .container {
-            border-top: 2px solid var(--border-color);
             display: flex;
             height: 100%;
+            width: 100%;
           }
         `}
       </style>
