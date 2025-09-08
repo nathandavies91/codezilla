@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Open_Sans } from "next/font/google";
 
+import StyleRegistry from "./style-registry";
+
 import "./globals.css";
 
 const font = Open_Sans({
@@ -18,12 +20,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={font.className}>
-        <main>
-          {children}
-        </main>
-      </body>
-    </html>
+    <StyleRegistry>
+      <html lang="en">
+        <body className={font.className}>
+          <main>
+            {children}
+          </main>
+        </body>
+      </html>
+    </StyleRegistry>
   );
 }
