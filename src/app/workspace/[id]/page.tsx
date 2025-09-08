@@ -168,10 +168,10 @@ export default function Page() {
         </Workspace.Item.Header>
         <Workspace.Item.Body style={{ padding: "0 1em 1em" }}>
           <Container>
-            <Workspace stackUntil={1200}>
+            <Workspace hasDivider stackUntil={1200}>
               {isCodeVisible ? (
                 <Workspace.Item>
-                  <Workspace>
+                  <Workspace hasDivider>
                     <Workspace.Item minWidth={200} maxWidth={400}>
                       <Workspace.Item.Body style={{ padding: "1em" }}>
                         <FileExplorer
@@ -183,7 +183,7 @@ export default function Page() {
                     </Workspace.Item>
                     {!!filePath ? (
                       <Workspace.Item minWidth={400}>
-                        <Workspace.Item.Header flex style={{ background: "var(--workspace-header)" }}>
+                        <Workspace.Item.Header flex>
                           {filePath && (
                             <span style={{ flexGrow: 1 }}>{filePath}</span>
                           )}
@@ -212,7 +212,7 @@ export default function Page() {
               ) : <></>}
               {isAppPreviewVisible ? (
                 <Workspace.Item minWidth={400}>
-                  <Workspace.Item.Header flex style={{ background: "var(--workspace-header)" }}>
+                  <Workspace.Item.Header flex>
                     <Form flex onSubmit={handleAppPreviewSubmit}>
                       <Input
                         defaultValue={route}
