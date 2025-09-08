@@ -3,10 +3,10 @@
 
   --accent: light-dark(#fff, #1c1d1d);
   --background: light-dark(#f4f5f7, #111);
-  --border-color: light-dark(rgba(28, 29, 29, .4), rgba(244, 245, 247, .4));
   --button-background: light-dark(#1c1d1d, #f4f5f7);
   --button-color: light-dark(#f4f5f7, #1c1d1d);
   --color: light-dark(#1c1d1d, #f4f5f7);
+  --workspace-header: light-dark(#d5d6d7, #282727);
 }
 
 * {

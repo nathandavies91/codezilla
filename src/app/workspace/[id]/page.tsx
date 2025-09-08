@@ -183,7 +183,7 @@ export default function Page() {
                     </Workspace.Item>
                     {!!filePath ? (
                       <Workspace.Item minWidth={400}>
-                        <Workspace.Item.Header flex>
+                        <Workspace.Item.Header flex style={{ background: "var(--workspace-header)" }}>
                           {filePath && (
                             <span style={{ flexGrow: 1 }}>{filePath}</span>
                           )}
@@ -212,7 +212,7 @@ export default function Page() {
               ) : <></>}
               {isAppPreviewVisible ? (
                 <Workspace.Item minWidth={400}>
-                  <Workspace.Item.Header flex>
+                  <Workspace.Item.Header flex style={{ background: "var(--workspace-header)" }}>
                     <Form flex onSubmit={handleAppPreviewSubmit}>
                       <Input
                         defaultValue={route}
