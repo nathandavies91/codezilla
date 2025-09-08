@@ -168,45 +168,47 @@ export default function Page() {
         </Workspace.Item.Header>
         <Workspace.Item.Body style={{ padding: "0 1em 1em" }}>
           <Container>
-            <Workspace>
+            <Workspace stackUntil={1200}>
               {isCodeVisible ? (
-                <>
-                  <Workspace.Item minWidth={200} maxWidth={400}>
-                    <Workspace.Item.Body style={{ padding: "1em" }}>
-                      <FileExplorer
-                        onOpenFileRequest={handleOpenFileRequest}
-                        ref={explorerRef}
-                        root="src"
-                      />
-                    </Workspace.Item.Body>
-                  </Workspace.Item>
-                  {!!filePath ? (
-                    <Workspace.Item minWidth={400}>
-                      <Workspace.Item.Header flex>
-                        {filePath && (
-                          <span style={{ flexGrow: 1 }}>{filePath}</span>
-                        )}
-                        <div>
-                          <Button
-                            aria-label="Save document"
-                            disabled={isFileSaving}
-                            onClick={() => handleFileSaveRequest(filePath!)}
-                            variant="flat"
-                          >
-                            <Icon variant={IconVariant.Save} />
-                          </Button>
-                        </div>
-                      </Workspace.Item.Header>
-                      <Workspace.Item.Body>
-                        <CodeEditor
-                          code={code}
-                          filePath={filePath}
-                          onChange={(code) => handleCodeChange(filePath!, code)}
+                <Workspace.Item>
+                  <Workspace>
+                    <Workspace.Item minWidth={200} maxWidth={400}>
+                      <Workspace.Item.Body style={{ padding: "1em" }}>
+                        <FileExplorer
+                          onOpenFileRequest={handleOpenFileRequest}
+                          ref={explorerRef}
+                          root="src"
                         />
                       </Workspace.Item.Body>
                     </Workspace.Item>
-                  ) : <></>}
-                </>
+                    {!!filePath ? (
+                      <Workspace.Item minWidth={400}>
+                        <Workspace.Item.Header flex>
+                          {filePath && (
+                            <span style={{ flexGrow: 1 }}>{filePath}</span>
+                          )}
+                          <div>
+                            <Button
+                              aria-label="Save document"
+                              disabled={isFileSaving}
+                              onClick={() => handleFileSaveRequest(filePath!)}
+                              variant="flat"
+                            >
+                              <Icon variant={IconVariant.Save} />
+                            </Button>
+                          </div>
+                        </Workspace.Item.Header>
+                        <Workspace.Item.Body>
+                          <CodeEditor
+                            code={code}
+                            filePath={filePath}
+                            onChange={(code) => handleCodeChange(filePath!, code)}
+                          />
+                        </Workspace.Item.Body>
+                      </Workspace.Item>
+                    ) : <></>}
+                  </Workspace>
+                </Workspace.Item>
               ) : <></>}
               {isAppPreviewVisible ? (
                 <Workspace.Item minWidth={400}>
